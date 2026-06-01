@@ -1,158 +1,199 @@
 ---
 name: backend-pragmatism-design
-description: "Use when the user designs, refactors, reviews, audits, or architects backend code in OOP+DI frameworks (NestJS, Spring Boot, ASP.NET Core, Micronaut, Quarkus). Covers layered architecture with pragmatic DDD borrowing: bounded contexts (BC), aggregate roots, entities, value objects, policies, specifications, domain services, repositories, application services, shallow CQRS (separate query services), domain errors, unit of work, transaction boundaries, request-scoped context, dependency direction enforcement (app → module → shared), and test strategy (Solitary unit / Sociable use-case / Integration). Make sure to use this skill whenever the user asks 'where should this code go', wants to split or merge bounded contexts, extract a policy or specification from messy service code, harden a use case for production (transactions, idempotency, error mapping), remove over-abstraction (dead interfaces, useless ViewModel mappers, single-implementation ports), design a new repository, set up unit of work, plan a multi-BC orchestration, or migrate an existing service toward this style. Triggers on phrases like 'design this feature', 'refactor this service', 'is this layer correct', 'split this BC', 'review this PR', 'add transaction handling', 'where does query service go', '이 코드 어디 둬야 해', 'BC 나눠줘', 'repository 설계', 'application service에 뭐 둬야 해', 'use case test 작성', 'aggregate', 'policy 추출', 'specification', 'unit of work', '의존성 방향'. Also triggers on whether an interface is justified, whether DI inversion is needed, whether shallow CQRS applies. Applies to single-database monoliths or comparably cohesive units. Not for frontend, DI-less raw Express/Fastify, or Go-style explicit-wiring backends."
+description: "Use when designing, reviewing, or migrating backend code in OOP+DI frameworks (NestJS, Spring Boot, ASP.NET Core, Micronaut, Quarkus) and the question is WHERE code should physically live. Structure-first: a pragmatic layered architecture on three layers with a strict one-directional reference graph — app/<feature> (presentation + orchestration + read query), module/<bc> (domain + persistence, by aggregate), shared/ (business-independent tech). Answers where code goes, whether a layer/reference direction is correct, splitting or merging bounded contexts, where query service / repository / orchestration service belong, and avoiding app→app or module→module coupling. Borrows DDD; applies shallow CQRS and variance-based DIP. Triggers on '이 코드 어디 둬야 해', 'BC 나눠줘', '레이어 맞아?', 'repository 어디 둬', 'query service 위치', '의존성 방향', 'where should this go'. For single-DB monoliths; error taxonomy and test tactics are delegated to per-project convention. Not for frontend, DI-less Express/Fastify, or Go-style backends."
 license: Apache-2.0
 metadata:
-  version: "0.1.0"
+  version: "0.2.0"
   author: dev-goraebap
 ---
 
 # Backend Pragmatism Design
 
-OOP와 DI를 제공하는 백엔드 프레임워크 환경에서, **실용적인 레이어드 아키텍처 + 일부 DDD 차용**을 적용하기 위한 설계 스킬입니다. 헥사고날/클린/완전한 CQRS의 도그마를 따르지 않습니다.
+OOP와 DI를 제공하는 백엔드 프레임워크에서 "이 코드가 물리적으로 어디에 살아야 하는가"를 결정하는 **구조-first** 설계 스킬이다. 헥사고날·클린·완전한 CQRS의 도그마를 따르지 않는다.
 
-설계 사상과 배경 narrative는 [README.md](./README.md)에 있고, 본 SKILL.md는 **라우터와 공통 원칙만** 담습니다. 작업 종류가 정해지면 해당 `reference/*.md`만 펼쳐서 따르면 됩니다. impeccable 스킬의 라우터 패턴을 차용했습니다.
+핵심은 명령어 모음이 아니라 세 물리 레이어와 그 사이의 단방향 참조 그래프다. 대부분의 판단은 이 문서 하나로 끝나며, 깊은 설명이 필요할 때만 해당 `reference/*.md`를 펼친다.
+
+왜(Why) 이렇게 설계했는지는 [README.md](./README.md)에 있다. 이 문서는 무엇(What)을 어디에 두는지를 다룬다.
 
 ## 전제
 
-- **OOP**: 클래스·상속·다형성을 1급 기법으로 사용한다.
-- **DI 컨테이너**: 생성자 주입을 지원한다. (NestJS, Spring, ASP.NET Core, Micronaut, Quarkus, Angular(server) 등)
-- **단일 DB 모놀리식 또는 그에 준하는 응집 단위**. 마이크로서비스 분할은 적용 범위 밖.
-- **런타임 식별자로 추상 타입 사용 가능**. (TypeScript는 `abstract class`로, JVM/C#은 `interface`로)
+- OOP: 클래스·상속·다형성을 1급 기법으로 쓴다.
+- DI 컨테이너: 생성자 주입을 지원한다 (NestJS, Spring, ASP.NET Core, Micronaut, Quarkus 등).
+- 단일 DB 모놀리식 또는 그에 준하는 응집 단위. 마이크로서비스 분할은 적용 범위 밖이다.
+- 런타임 식별자로 추상 타입을 쓸 수 있다 (TypeScript `abstract class`, JVM/C# `interface`).
 
-전제가 깨지는 환경(순수 함수형, DI 없는 Express/Fastify, Go 등)은 적용 범위 밖입니다.
+전제가 깨지는 환경(순수 함수형, DI 없는 Express/Fastify, Go 등)은 적용 범위 밖이다.
 
 ## 자기 규율: 원리 vs 실행 vs 컨벤션
 
-본 스킬이 다루는 모든 진술은 셋 중 하나로 분류한다.
+이 스킬의 모든 진술은 셋 중 하나다. 작성·수정·리뷰의 점검 기준으로 삼는다.
 
-- **A. 설계 원리**: 프레임워크/언어와 무관하게 "왜"가 성립. SKILL.md 본문과 각 reference 본문에 둔다.
-- **B. 프레임워크 실행 방식**: 같은 원리를 NestJS/Spring/.NET이 다르게 구현. 각 reference 하단의 **프레임워크 노트**에 둔다.
-- **C. 팀 컨벤션**: 같은 프레임워크 안에서도 팀이 다르게 선택 가능 (디렉터리 명명, 파일 suffix, 에러 코드 명명, soft-delete 채택 여부, audit 컬럼 이름, 검증 라이브러리 등). **PROJECT.md**로 외부화한다.
+- **A. 설계 원리** — 프레임워크/언어와 무관하게 "왜"가 성립한다. 본문에 둔다.
+- **B. 프레임워크 실행 방식** — 같은 원리를 NestJS/Spring/.NET이 다르게 구현한다. 각 reference 하단 프레임워크 노트에 둔다.
+- **C. 팀 컨벤션** — 같은 프레임워크 안에서도 팀이 다르게 고른다 (폴더명, 파일 suffix, 에러 코드 명명, soft-delete, audit 컬럼명, 검증 라이브러리 등). PROJECT.md로 외부화한다. → [reference/project-convention.md](./reference/project-convention.md)
 
-본문에 실행 방식(B)이나 컨벤션(C)이 섞이면 본 스킬은 특정 스택에서만 작동하는 것이 된다. 본문을 작성·수정할 때 이 분류를 점검 기준으로 삼는다.
+본문에 B나 C가 섞이면 이 스킬은 특정 스택에서만 작동하게 된다.
 
-## 설정
+---
 
-작업 시작 전에 프로젝트 컨텍스트를 한 번 확인합니다.
-
-1. **PROJECT.md** (있으면 로드, 없으면 생략 가능): BC 목록, 도메인 용어집, 그리고 위 자기 규율의 **C 항목**들 (디렉터리 명명 규약, 파일 suffix, 에러 코드 명명 규칙, soft-delete 채택 여부, audit 컬럼 이름, 검증 라이브러리 선택 등).
-2. **ARCHITECTURE.md** (선택): 현 코드베이스의 레이어 구조 스냅샷.
-
-두 파일이 없으면 `teach`로 PROJECT.md를 먼저 채우고, 기존 코드가 충분히 쌓여 있으면 `document`로 ARCHITECTURE.md를 역생성합니다. 같은 세션 내 재로딩은 하지 않습니다 (해당 파일이 갱신된 직후만 예외).
-
-## 공통 설계 법칙
-
-모든 명령에 공통으로 적용됩니다. 개별 reference 문서는 이 법칙 위에서 작동합니다.
-
-### 1. 레이어 3분할과 단방향 의존
+## 핵심: 세 레이어와 단방향 참조 그래프
 
 ```
-app/<resource>/    Presentation + Application + Infrastructure(조회)
+app/<feature>/    Presentation + Application(오케스트레이션) + Infrastructure(조회)
+       │
+       ▼
 module/<bc>/       Domain + Infrastructure(영속성/외부 어댑터)
-shared/            비즈니스 무관 기술 인프라
+       │
+       ▼
+shared/            비즈니스 무관 기술 인프라  (아키텍처 최하위층)
 ```
 
-참조 방향:
+참조는 항상 위에서 아래로만 흐른다.
 
-- `app → module` 허용 (BC 조립)
-- `app, module → shared` 허용
-- `module → module` 금지 (BC 간 직접 결합은 항상 `app`이 중재)
-- `module → app` 금지
-- `shared → app, module` 금지
+- `app → module` ✅ (비즈니스 조립)
+- `app → shared`, `module → shared` ✅
+- `module → app` ❌ — 도메인은 화면 계약을 몰라야 한다.
+- `module → module` ❌ — BC 간 조립은 항상 app이 중재한다.
+- `shared → app`, `shared → module` ❌ — shared는 비즈니스 독립이어야 한다.
 
-순환 참조는 구조적으로 차단합니다.
+레이어 안의 슬라이스(layer 내 한 단위)끼리도 격리한다.
 
-### 2. 변동성 차이가 큰 경계에만 DIP
+- `app/<a>` ↔ `app/<b>` ❌ (기능 슬라이스끼리 직접 참조 금지)
+- `module/<x>` ↔ `module/<y>` ❌ (BC끼리 직접 참조 금지)
+- `shared/<f1>` → `shared/<f2>` 는 허용하되 단방향만 (순환 금지)
 
-- **Repository**: 추상 식별자로 노출. 인메모리 테스트 더블 교체가 핵심 가치.
-- **외부 서드파티 어댑터**: 기본은 구체 클래스. 행위 검증으로 충분하지 않을 때만 추상화.
-- 그 외 클래스에 무차별 인터페이스를 부여하지 않는다.
+이 단방향성이 모놀리식의 가장 큰 늪인 **순환 참조를 구조적으로 차단**한다.
 
-> 인터페이스의 존재 이유는 헥사고날 형식 충족이 아니라 **테스트 더블 슬롯 제공**이다.
+## 배치 한 줄 휴리스틱
 
-### 3. 얕은 CQRS
+> 불변 비즈니스 규칙인가? → `module`
+> 화면·외부·액터 요구에 결합되는가? → `app`
+> 비즈니스와 무관한 기술인가? → `shared`
 
-- **Write(CUD)**: 도메인 모델을 통한다. Repository로 로드, 도메인 메서드로 전이, Repository로 저장.
-- **Read(화면 조회)**: `app/<resource>/` 안의 Query Service에서 DB를 직접 쿼리. 도메인 모델을 거치지 않는다. 크로스 BC JOIN 허용.
-- **CUD에서 Query Service 호출 금지**. 화면 스펙 변경이 비즈니스를 깨뜨린다.
+신규 팀원에게 줄 단 하나의 판단 기준이다.
 
-### 4. 도메인 보존
+---
 
-- 도메인은 외부 화면 명세나 인프라 결정과 무관하게 독립 설계 가능해야 한다.
-- 도메인 모델은 의존성 0의 Solitary Unit Test로 검증된다.
-- 영속 스키마의 부수 정보(생성/수정 시각, 작성자, soft-delete 플래그 등)가 도메인 의도를 흐리지 않도록 한다. 구체적 기법(별도 클래스로 분리할지, ORM 어노테이션으로 격리할지, JPA 엔티티에 그대로 두고 도메인 메서드 노출만 통제할지)은 프레임워크/ORM에 따라 갈린다. [원리는 A, 기법은 B]
+## app/&lt;feature&gt; — 기능(feature) 슬라이스
 
-### 5. 시간과 ID 추상화를 만들지 않는다
+app은 여러 module을 자유롭게 주입받아 유스케이스를 조립하는 **단일 결합 지점**이다. 그래서 app끼리는 격리하고, 조립 책임만 여기 모은다.
 
-- Clock / IdGenerator 같은 인터페이스를 만들지 않는다. 언어/런타임 표준 API를 도메인에서 직접 호출한다.
-- 테스트에서 시간 고정이 필요하면 테스트 도구의 시계 모킹 기능을 사용한다.
-- 언어별 표준 API 호출 예시는 [reference/model.md](./reference/model.md)의 프레임워크 노트 참조. [B]
+### 기능-first, 플랫, 격리
 
-### 6. 도메인 에러 분류 체계
+- 슬라이스는 기능(사용자/액터 관점의 유스케이스 묶음) 단위다. URL 계층을 그대로 따라간 중첩 폴더(`app/orgs/departments/`)는 만들지 않는다. module처럼 평면 슬라이스로 둔다.
+- `app/<feature>`는 형제 슬라이스를 참조하지 않는다. 공유가 필요하면, 도메인이면 module로 내리고 횡단 글루면 `app/shared`로 보낸다.
+- app 슬라이스는 module과 모양만 닮았을 뿐 1:1 미러가 아니다. 한 기능이 여러 BC를 조립하고(1:N), 한 BC가 여러 기능에 쓰인다(N:1). **N:M이 정상**이다. 1:1 미러가 되면 BC-first로 회귀한 것이다.
 
-- 도메인 에러는 의미별 5종(400 BadRequest / 401 Unauthorized / 403 Forbidden / 404 NotFound / 409 Conflict)으로 분류한다.
-- 도메인 에러 클래스가 HTTP 상태로 자동 매핑되도록 프레임워크의 전역 예외 처리 지점에서 연결한다. 매핑 기법(필터 / advice / middleware)은 프레임워크마다 다르다. [B]
-- 에러 코드 명명 규칙(prefix, case, 길이)과 메시지 다국어 정책은 팀 컨벤션이다. [C → PROJECT.md]
+### 채널은 폴더 축이 아니라 슬라이스 내부 프래그먼트(slice 안의 역할 단위)다
 
-### 7. 테스트 3-tier
+진입점(driving/inbound adapter)은 REST 컨트롤러만이 아니다. CLI, 스케줄/크론, 메시지·이벤트 컨슈머, 웹훅 등이 있다. 이들을 채널별 최상위 폴더(`app/http/`, `app/jobs/`)로 가르면 같은 유스케이스가 채널마다 복제된다.
 
-| 위치 | 종류 | 필수 여부 |
+그래서 채널은 슬라이스 안의 프래그먼트로 둔다. 채널 핸들러는 얇게(입력 파싱 → 호출 → 출력 포맷) 두고, **오케스트레이션은 채널-중립 `service` 한 곳에만** 둔다. URL 중첩은 컨트롤러의 라우트 경로(`@Controller('orgs/:id/departments')`)로만 표현한다.
+
+```
+app/checkout/
+├── checkout.controller.ts       # 채널 프래그먼트 (REST)
+├── checkout.cron.ts             # 채널 프래그먼트 (스케줄)  ← 폴더 아님
+├── checkout.service.ts          # 오케스트레이션 (여러 CUD; module 조립)
+├── checkout-query.service.ts    # 얕은 CQRS 읽기 (DB 직접 JOIN → Response DTO)
+└── dto/
+```
+
+- 오케스트레이션은 `service` 하나에 여러 CUD 기능을 담는다. 액터가 늘면 `admin-checkout.service.ts` 식으로 분리할 수 있다.
+- 슬라이스 내부 정돈 방식(역할 폴더 vs 파일명 규약)은 프로젝트 컨벤션에 위임한다. 권장 그림은 "기능 폴더가 바깥, 역할 프래그먼트가 안" — 자세히는 [reference/app-layer.md](./reference/app-layer.md).
+
+## module/&lt;bc&gt; — 도메인 + 영속성 동거
+
+도메인 엔티티와 그 Repository 구현은 1:1로 강하게 묶인다. 그래서 도메인과 그 영속성은 같은 BC 폴더 안에 동거시킨다.
+
+- 애그리게이트 단위로 묶는다 (권장 기본값, SHOULD). 애그리게이트가 1개면 플랫, 여러 개면 애그리게이트별 폴더로 나누고 각 폴더 안에 `domain/`과 `infrastructure/`를 함께 둔다.
+- 도메인 요소: Entity / Value Object / Policy / Specification / Domain Service / Domain Error.
+- Repository는 애그리게이트 루트당 하나다. DIP의 핵심 슬롯이다(아래).
+
+```
+module/billing/
+├── invoice/
+│   ├── domain/          # Invoice 애그리게이트, VO, Policy, Spec, InvoiceRepository(추상)
+│   └── infrastructure/  # InvoiceRepository 구현, ORM 엔티티
+└── payment/
+    ├── domain/
+    └── infrastructure/
+```
+
+자세히는 [reference/module-layer.md](./reference/module-layer.md).
+
+## shared 3종
+
+각 레이어는 자기 공용물을 담는 `shared` 하위를 가질 수 있다. 기본 명명은 `_shared`가 아니라 `shared`이며, 모든 폴더명은 PROJECT.md로 덮어쓸 수 있다.
+
+| 위치 | 무엇 | 규칙 |
 | --- | --- | --- |
-| `module/<bc>/domain/` | Solitary Unit Test | 필수 |
-| `app/<resource>/` | Sociable Use Case Test | 필수 |
-| Repository 구현체, Query Service | Integration Test | 선택 (생략 권장) |
+| `shared/` (top 레이어) | 비즈니스 무관 기술 인프라 (DB 커넥션, 로깅, 설정, 유틸) | 기술 noun으로 fragment, fragment 간 단방향 |
+| `app/shared` | 횡단 글루 (Guard, Interceptor, Decorator/어노테이션, 공통 DTO) | 서비스(오케스트레이션) 이주 금지 |
+| `module/shared` | 크로스-BC 공유 도메인 커널 (공통 VO·도메인 베이스 클래스·공용 도메인 에러 기반 타입) | `module/<bc> → module/shared` ✅, 역방향 ❌ |
 
-## 명령어
+---
 
-| 명령 | 카테고리 | 한 줄 설명 | 본문 |
-| --- | --- | --- | --- |
-| `teach` | Setup | PROJECT.md(BC 목록·컨벤션·용어집) 세팅 인터뷰 | [reference/teach.md](./reference/teach.md) |
-| `document` | Setup | 기존 코드베이스에서 ARCHITECTURE.md 역생성 | [reference/document.md](./reference/document.md) |
-| `shape [feature]` | Design | 코드 작성 전 유스케이스 설계 (touch surface, 트랜잭션 경계) | [reference/shape.md](./reference/shape.md) |
-| `craft [feature]` | Design | shape 거쳐 end-to-end 구현 | [reference/craft.md](./reference/craft.md) |
-| `model [bc]` | Design | 한 BC의 도메인 모델(Entity/VO/Policy/Spec/Error) 설계 | [reference/model.md](./reference/model.md) |
-| `boundaries` | Design | BC 분할·병합·이름 정합 검토 | [reference/boundaries.md](./reference/boundaries.md) |
-| `critique [target]` | Evaluate | 책임·의존성·복잡도 종합 설계 리뷰 | [reference/critique.md](./reference/critique.md) |
-| `audit [target]` | Evaluate | 단방향 의존성 위반·레이어 누수 기계 체크 | [reference/audit.md](./reference/audit.md) |
-| `refactor [target]` | Refine | 설계 어긋난 기존 코드 교정 | [reference/refactor.md](./reference/refactor.md) |
-| `distill [target]` | Refine | 과잉 추상화·중간 매퍼·죽은 인터페이스 제거 | [reference/distill.md](./reference/distill.md) |
-| `harden [target]` | Refine | 트랜잭션·동시성·에러·멱등성 견고화 | [reference/harden.md](./reference/harden.md) |
-| `extract [target]` | Refine | 반복 로직을 `_shared/` 또는 Domain Service로 승격 | [reference/extract.md](./reference/extract.md) |
-| `transaction [target]` | Topic | UoW, 트랜잭션 경계, 전파 | [reference/transaction.md](./reference/transaction.md) |
-| `query [target]` | Topic | 얕은 CQRS, Query Service, N+1 방지 | [reference/query.md](./reference/query.md) |
-| `repository [target]` | Topic | Repository 설계 (추상 식별자, soft-delete, batch) | [reference/repository.md](./reference/repository.md) |
-| `error-model [target]` | Topic | 도메인 에러 분류·HTTP 매핑 | [reference/error-model.md](./reference/error-model.md) |
-| `test-strategy [target]` | Topic | Solitary/Sociable/Integration 작성 기준 | [reference/test-strategy.md](./reference/test-strategy.md) |
-| `policy [target]` | Topic | Policy 추출 시점·Entity와의 관계 | [reference/policy.md](./reference/policy.md) |
-| `specification [target]` | Topic | Specification 추출 시점·Policy와의 차이 | [reference/specification.md](./reference/specification.md) |
+## DIP: 인터페이스는 테스트 더블 슬롯이다
 
-## 라우팅 규칙
+인터페이스의 존재 이유는 헥사고날 형식 충족이 아니라 **테스트에서 더블을 교체 주입할 슬롯**이다. 변동성 차이가 큰 경계에만 제한적으로 적용한다.
 
-1. **인자 없음**: 위 명령어 표를 사용자에게 그대로 보여주고 무엇을 할지 묻는다.
-2. **첫 단어가 명령과 일치**: 해당 reference 문서를 로드하고 그 절차를 따른다. 첫 단어 뒤는 모두 대상(target).
-3. **명령과 일치하지 않음**: 일반 백엔드 설계 질문으로 간주한다. 위 공통 설계 법칙과 [README.md](./README.md)의 철학을 적용해 답한다.
+- Repository는 추상으로 노출한다. 인메모리 테스트 더블 교체가 핵심 가치다. (필수)
+- 외부 서드파티 어댑터(결제·메일·Slack 등)는 기본은 구체 클래스다. 행위 검증(모킹)으로 충분하면 인터페이스를 만들지 않는다. 어댑터 설계 일관성을 강화할 목적일 때만 선택적으로 추상화한다.
+- 그 외 클래스에 무차별로 인터페이스를 부여하지 않는다.
+- 시간과 ID는 추상화하지 않는다. `Clock`/`IdGenerator` 인터페이스를 만들지 말고, 언어 표준 API를 도메인에서 직접 호출한다. 테스트는 시계 모킹 도구로 고정한다.
 
-setup 단계(PROJECT.md / ARCHITECTURE.md 로드)는 첫 명령 시점에 한 번만 실행하고 세션 내 재실행하지 않는다. 예외: `teach`나 `document`가 방금 파일을 갱신한 경우.
+## 얕은 CQRS
 
-## 프레임워크 노트
+- Write(CUD)는 도메인 모델을 통한다. Repository로 로드 → 도메인 메서드로 전이 → Repository로 저장.
+- Read(화면 조회)는 `app/<feature>` 안의 Query Service가 DB를 직접 JOIN해 Response DTO를 바로 만든다. 도메인 모델을 거치지 않으며, 크로스 BC JOIN을 허용한다.
+- **CUD에서 Query Service를 호출하지 않는다.** 화면 스펙 변경이 비즈니스를 깨뜨리지 않게 하기 위함이다.
 
-본문은 모두 프레임워크 중립으로 서술합니다. 각 reference 문서 하단에 `프레임워크 노트` 섹션을 두어 NestJS·Spring·ASP.NET Core에서의 매핑을 한두 줄로 정리합니다.
+## 테스트는 폴더가 결정한다 (구조적 흔적)
 
-대표 매핑:
+| 위치 | 테스트 종류 | 필수 여부 |
+| --- | --- | --- |
+| `module/<bc>/domain/` | Solitary Unit (의존성 0) | 필수 |
+| `app/<feature>/*.service` | Sociable Use Case | 필수 |
+| Repository 구현체, Query Service | Integration | 선택 (생략 권장) |
+
+폴더 구조만으로 어떤 테스트를 써야 하는지가 정해진다. 테스트 작성 택틱과 도구 선택은 프로젝트 컨벤션이다.
+
+## 에러 모델은 프로젝트 컨벤션이다
+
+도메인 에러 분류, 코드 명명, HTTP 매핑 기법은 이 스킬이 강제하지 않는다. → [reference/project-convention.md](./reference/project-convention.md)
+
+---
+
+## 안티패턴
+
+- app↔app / module↔module 직접 참조 — 격리 위반. 조립은 app, 공유는 module 또는 shared로.
+- 채널을 최상위 폴더 축으로 (`app/http/`, `app/consumers/`) — 오케스트레이션 중복을 부른다.
+- URL 계층을 그대로 베낀 app 중첩 폴더 — 기능 슬라이스로 평탄화하라.
+- Query Service를 `module/<bc>/infrastructure/`에 — 반환 DTO가 app에 있어 역방향 의존이 생긴다. app 슬라이스 안에 둔다.
+- CUD 서비스가 Query Service 호출 — 화면 스펙이 비즈니스를 오염시킨다.
+- 무차별 인터페이스 / 단일 구현 포트 / 죽은 ViewModel 매퍼 — 테스트 더블 슬롯이 아니면 만들지 않는다.
+- `Clock`/`IdGenerator` 추상화 — 표준 API를 직접 호출한다.
+- `app/shared`로 오케스트레이션 서비스 이주 — app/shared는 횡단 글루 전용이다.
+- 도메인 로직이 app 서비스에 누적 — 중복의 진원지. module 도메인으로 내려라.
+
+## 조건부 references
+
+대부분은 위 본문으로 끝난다. 아래 상황에서만 해당 문서를 펼친다 (전부 미리 로드하지 않는다).
+
+- 참조/의존성 위반을 따지거나 BC 경계를 나눌 때 → [reference/dependency-rules.md](./reference/dependency-rules.md)
+- app 슬라이스 설계 / 채널·service·query 배치 / app 중복 처리 → [reference/app-layer.md](./reference/app-layer.md)
+- BC 도메인 모델 / 애그리게이트·Repository·Policy·Spec 설계 → [reference/module-layer.md](./reference/module-layer.md)
+- 기존 코드베이스를 이 구조로 옮길 때 → [reference/migration.md](./reference/migration.md)
+- 위임 항목(폴더명·에러·테스트 택틱 등) 결정 / PROJECT.md 작성 → [reference/project-convention.md](./reference/project-convention.md)
+
+## 프레임워크 노트 (대표 매핑)
 
 | 추상 개념 | NestJS | Spring Boot | ASP.NET Core |
 | --- | --- | --- | --- |
 | 런타임 식별자 (DI 토큰) | `abstract class` | `interface` | `interface` |
 | 요청 스코프 컨텍스트 | `AsyncLocalStorage` | `RequestContextHolder` / `ThreadLocal` | `AsyncLocal<T>` / `IHttpContextAccessor` |
 | 컨테이너 등록 | `@Module` providers | `@Component` / `@Bean` | `services.AddScoped` |
-| DTO 검증 | Zod / class-validator | Bean Validation | FluentValidation / DataAnnotations |
-| 테스트 더블 | Jest mocks | Mockito | Moq / NSubstitute |
-| 트랜잭션 | TypeORM/Prisma 트랜잭션 + ALS | `@Transactional` | `TransactionScope` / EF Core |
+| 트랜잭션 경계 | ORM 트랜잭션 + ALS | `@Transactional` | `TransactionScope` / EF Core |
 
 상세는 각 reference의 프레임워크 노트 참조.
-
-## 참고
-
-- [README.md](./README.md) - 왜 이렇게 설계했는가 (배경, 트레이드오프, 철학)
-- [reference/](./reference/) - 명령별 본문
