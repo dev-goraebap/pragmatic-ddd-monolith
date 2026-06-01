@@ -1,0 +1,35 @@
+{
+  "name": "backend-pragmatism-design",
+  "version": "0.1.0",
+  "description": "Pragmatic layered + lite-DDD + shallow-CQRS design skill for OOP+DI backends (NestJS, Spring Boot, ASP.NET Core).",
+  "keywords": [
+    "agent-skill",
+    "agentskills",
+    "backend",
+    "architecture",
+    "ddd",
+    "layered",
+    "cqrs",
+    "nestjs",
+    "spring",
+    "aspnet",
+    "design"
+  ],
+  "license": "Apache-2.0",
+  "author": "dev-goraebap <dev.goraebap@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dev-goraebap/backend-pragmatism-design.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dev-goraebap/backend-pragmatism-design/issues"
+  },
+  "homepage": "https://github.com/dev-goraebap/backend-pragmatism-design#readme",
+  "files": [
+    "SKILL.md",
+    "README.md",
+    "reference/",
+    "LICENSE",
+    "CHANGELOG.md"
+  ]
+}
