@@ -14,14 +14,15 @@ npx skills add dev-goraebap/backend-pragmatism-design
 기능 기반 구조에서 출발해 결합을 점진적으로 풉니다.
 
 1. 관련 모듈을 **바운디드 컨텍스트**로 묶고 (하위 도메인 Core/Generic/Support),
-2. 컨텍스트 간 결합을 상황에 맞는 방법으로 푼다 — **폴더 레이어 분할 / DIP 인터페이스 / 동기 인-프로세스 이벤트**,
-3. 조회는 **얕은 CQRS**로 분리한다 (화면용 쿼리 서비스 / 비즈니스 흐름용 읽기 전용 모델).
+2. 컨텍스트 안을 **복잡도에 따라 구성하고** (플랫 vs 레이어, 1티어/2티어),
+3. 컨텍스트 간 결합을 상황에 맞는 방법으로 푼다 — **폴더 레이어 분할 / OpenHostService + 의존 역전 / 동기 인-프로세스 이벤트**,
+4. 조회는 **얕은 CQRS**로 분리한다 (화면용 쿼리 서비스 / 비즈니스 흐름용 읽기 전용 모델).
 
 규정형이 아니라 **선택지 + 가이드**이며, 폴더명·파일 배치 등 **세부는 프로젝트 컨벤션에 위임**합니다.
 
 - [SKILL.md](./SKILL.md) — 본체(전제·흐름·선택지).
 - [reference/concepts.md](./reference/concepts.md) — 빌려온 DDD 어휘.
-- [reference/decoupling.md](./reference/decoupling.md) — 결합 푸는 방법과 읽기 모델 상세.
+- [reference/decoupling.md](./reference/decoupling.md) — 컨텍스트 안 구성(플랫/레이어/티어)과 컨텍스트 간 결합 방법, 읽기 모델 상세.
 
 ## 왜 (배경)
 

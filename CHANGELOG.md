@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-03
+
+### Added
+- **"컨텍스트 안을 어떻게 구성할까" 축 추가** — 선택지 A(모듈 그대로 플랫) vs B(`domain`/`application`/`adapter` 레이어)와 복잡도 기반 **차등 적용(1티어/2티어)**. "핵심이라서가 아니라 복잡해서 레이어를 준다"는 기준 반영.
+
+### Changed
+- 컨텍스트 간 결합 방법 중 "DIP 인터페이스"를 **"OpenHostService(OHS) + 의존 역전"** 으로 심화 — ACL 대신 OHS로 단방향 인정, 역참조는 전략 패턴+DIP로 차단(연차 결재 예시).
+- 폴더 레이어 2분할을 **app/module** 명명으로 정리하고, 상·하위가 **1:1 대칭이 아님(N:M)** 을 명시.
+- 컨텍스트 정의 보강: **컨텍스트 ≠ 크기**(모듈 하나여도 컨텍스트, 잣대는 "자기만의 언어와 책임"), **경계는 양방향으로 변한다**(묶이고 쪼개짐).
+- 블로그 글 개선분 반영(`backend-pragmatism-design`).
+
 ## [0.3.0] - 2026-06-03
 
 ### Changed
