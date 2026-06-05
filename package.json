@@ -1,7 +1,7 @@
 {
   "name": "backend-pragmatism-design",
-  "version": "0.2.0",
-  "description": "Pragmatic layered + lite-DDD + shallow-CQRS design skill for OOP+DI backends (NestJS, Spring Boot, ASP.NET Core).",
+  "version": "0.3.0",
+  "description": "Pragmatic design skill for monolith + single-DB backends: start feature-based, group into bounded contexts, resolve coupling via folder layers / DIP / in-process events, with shallow CQRS read models.",
   "keywords": [
     "agent-skill",
     "agentskills",

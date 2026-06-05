@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-03
+
+### Changed
+- **블로그 정본을 반영해 규정형 → 선택지/가이드형으로 단순화.** "app/module/shared가 유일한 정답"이라는 규정적 서술을 걷어내고, 기능 기반 구조에서 출발해 결합을 점진적으로 푸는 흐름으로 재작성: 컨텍스트로 묶기 → 결합 풀기 메뉴(폴더 레이어 / DIP / 동기 이벤트) → 얕은 CQRS 읽기 모델.
+- 폴더명·파일 배치·레이어 이름 등 **세부를 프로젝트 컨벤션에 위임**(권장만, 강제 X). 컨벤션 문서의 위치·이름도 강제하지 않음.
+- README를 블로그 두 글(경계를 긋는 언어 / 백엔드 실용주의 디자인) 링크 중심으로 정리.
+
+### Removed
+- reference 5개(dependency-rules, app-layer, module-layer, migration, project-convention)를 **concepts.md + decoupling.md 2개**로 통합·축소.
+
 ## [0.2.0] - 2026-06-01
 
 ### Changed
