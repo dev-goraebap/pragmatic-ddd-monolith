@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-06-07
+
+### Changed
+- **예제를 HR 도메인(tiny-hr)으로 교체** — blog(post/category…) 대신 사원·부서·직급(organization)·인증(iam)·휴가(leave)·결재(approval)·알림(notification). 정본 글과 예제 프로젝트 [tiny-hr](https://github.com/dev-goraebap/tiny-hr)에 정렬.
+- **해결책 B를 "OHS + SPI(Service Provider Interface)"로 정식화** — 허브(결재)가 SPI 인터페이스를 소유하고 상대(휴가)가 구현·빈 등록, 허브는 `kind`로 디스패치. 휴직·근태 추가 시 결재 코드 수정 0.
+- **"OHS의 API는 HTTP Web API가 아니라 코드 레벨 클래스/인터페이스"** 명시.
+
+### Added
+- 읽기 전용 모델 **caveat**: 내 컨텍스트 언어로 매끄럽지 않으면 억지로 감싸지 말고 외부 데이터로 인정.
+- SKILL.md에 **의사결정 흐름 요약**(무질서 → 묶기 → 티어 → 결합 방법 선택).
+
 ## [0.4.0] - 2026-06-03
 
 ### Added
