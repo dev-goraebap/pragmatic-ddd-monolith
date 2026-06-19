@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-06-19
+
+### Changed
+- **스킬 이름 변경: `backend-pragmatism-design` → `pragmatic-ddd-monolith`.** "단일 배포 모놀리식"을 명확히 드러내기 위함(모듈 별도 배포가 아님). 디렉터리·GitHub 레포명도 동일하게 변경 필요.
+- **하나의 구체적 표준 아키텍처로 전환** — 블로그 기반 "선택지 메뉴"에서, 단일 배포 모놀리식 + 단일 DB(Spring Boot/Java)의 구체 아키텍처로 재작성. 컨텍스트=`module/<bc>` 패키지, 내부 레이어(`domain`/`application{command,query}`/`infrastructure/adapter`/`contract`), CQS, 상류/하류, contract(OHS+PL), Conformist vs ACL.
+- 톤을 **Spring/Java 구체**로(JPA 애노테이션 허용, Spring Data/MyBatis/QueryDSL 등). 블로그 글 링크 전부 제거.
+
+### Removed
+- reference `concepts.md`·`decoupling.md` → **`collaboration.md` 1개로 통합**(contract 코드·Conformist/ACL·양방향 처리·PR 체크리스트·용어집).
+- 블로그(goraebap.xyz) 첨부 링크 제거.
+
 ## [0.5.0] - 2026-06-07
 
 ### Changed

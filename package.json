@@ -1,30 +1,30 @@
 {
-  "name": "backend-pragmatism-design",
-  "version": "0.5.0",
-  "description": "Pragmatic design skill for monolith + single-DB backends: start feature-based, group into bounded contexts, resolve coupling via folder layers / DIP / in-process events, with shallow CQRS read models.",
+  "name": "pragmatic-ddd-monolith",
+  "version": "0.6.0",
+  "description": "Pragmatic DDD design skill for single-deployment monoliths on a single database (Spring Boot / Java): bounded contexts as module/<bc> packages, CQS command/query split, upstream contract (OHS + PL), and downstream Conformist vs ACL.",
   "keywords": [
     "agent-skill",
     "agentskills",
     "backend",
     "architecture",
     "ddd",
-    "layered",
+    "modular-monolith",
+    "monolith",
+    "bounded-context",
     "cqrs",
-    "nestjs",
-    "spring",
-    "aspnet",
-    "design"
+    "spring-boot",
+    "java"
   ],
   "license": "Apache-2.0",
   "author": "dev-goraebap <dev.goraebap@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/dev-goraebap/backend-pragmatism-design.git"
+    "url": "https://github.com/dev-goraebap/pragmatic-ddd-monolith.git"
   },
   "bugs": {
-    "url": "https://github.com/dev-goraebap/backend-pragmatism-design/issues"
+    "url": "https://github.com/dev-goraebap/pragmatic-ddd-monolith/issues"
   },
-  "homepage": "https://github.com/dev-goraebap/backend-pragmatism-design#readme",
+  "homepage": "https://github.com/dev-goraebap/pragmatic-ddd-monolith#readme",
   "files": [
     "SKILL.md",
     "README.md",

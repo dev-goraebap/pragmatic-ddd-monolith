@@ -1,48 +1,32 @@
-# backend-pragmatism-design
+# pragmatic-ddd-monolith
 
-> 모놀리식 + 단일 DB 백엔드에서 **"이 코드 어디 두지, 모듈 간 결합 어떻게 풀지"** 를 다루는 설계 스킬.
-> DDD를 통째로 따르지 않고 **"경계를 긋는 언어"만 실용적으로** 빌립니다.
-
----
-
-백엔드 프로젝트를 시작할 때 아키텍처와 폴더 구조는 늘 풀기 어려운 숙제입니다. 많은 팀이 도메인의 응집도를 높이려고 명사 중심의 **기능 기반 구조(feature-based structure)** 를 택하죠. 비슷한 관심사를 한곳에 모으는 이 방식은 처음엔 레이어 기반보다 훨씬 깔끔해 보입니다. 하지만 비즈니스가 복잡해지면 얼마 지나지 않아 **기능 간의 결합(coupling)** 에 부딪힙니다.
-
-해법으로 클린 아키텍처나 헥사고날을 검토하곤 하지만, 이들은 SOLID를 극단적으로 고수하려다 프로젝트 규모에 비해 과도한 보일러플레이트와 추상화를 떠안습니다. **'정석'이 곧 '내 프로젝트에 최적'인 것은 아닙니다.**
-
-이 스킬은 거창한 아키텍처를 도입하지 않고도, 기능 간 참조가 생기는 **근본 원인**부터 짚은 뒤 모놀리식에서 가볍고 점진적으로 구조를 개선해 가는 **실용적 선택지들**을 제시합니다. 정답 하나를 강요하지 않고, 상황에 맞는 카드를 고르게 합니다.
-
-## 이 스킬이 하려는 것
-
-날것의 기능 기반 구조에서 출발해, 단계적으로 경계를 긋고 의존을 다스립니다.
-
-1. **관련 모듈을 컨텍스트로 묶는다** — 따로 떨어져 보이던 모듈도 사실 하나의 도메인 모델을 이루는 조각일 때가 많습니다. 하위 도메인(핵심·일반·지원)으로 바라보며 바운디드 컨텍스트를 식별합니다.
-2. **컨텍스트 안을 복잡도에 따라 구성한다** — 단순하면 플랫하게, 복잡하면 `domain`/`application`/`adapter` 레이어로. *핵심이라서가 아니라 복잡해서* 레이어를 줍니다.
-3. **컨텍스트 간 결합을 다스린다** — 폴더 레이어로 참조 방향을 격리하거나(app/module), OpenHostService와 의존 역전(SPI)으로 단방향을 유지하거나, 인-프로세스 동기 이벤트로 참조를 끊습니다.
-4. **조회는 얕은 CQRS로 분리한다** — 화면용 데이터는 전용 쿼리 서비스로, 비즈니스 흐름용 데이터는 내 컨텍스트 언어의 읽기 전용 모델로.
-
-> 결국 모든 구조 설계의 종착지는 **비즈니스의 성장 속도, 그리고 팀의 규모·역량 사이의 트레이드오프에서 타협점을 찾는 것**입니다. 이 스킬은 그 타협을 돕는 도구이지, 지켜야 할 법이 아닙니다. 폴더명·파일 배치 같은 세부는 전부 프로젝트 컨벤션에 위임합니다.
+> **단일 배포 모놀리식 + 단일 DB**(Spring Boot / Java)에서 DDD를 실용적으로 빌려 바운디드 컨텍스트를 패키지로 나누는 설계 스킬.
+> 모듈을 따로 배포하지 않습니다(그건 MSA). 정석 DDD를 교조적으로 따르기보다 생산성과의 타협을 우선합니다.
 
 ## 설치
 
 ```bash
-npx skills add dev-goraebap/backend-pragmatism-design
+npx skills add dev-goraebap/pragmatic-ddd-monolith
 ```
 
-## 구성
+## 무엇을 하는가
 
-- [SKILL.md](./SKILL.md) — 본체. 전제 → 컨텍스트로 묶기 → 안 구성(티어) → 간 결합(선택지) → 얕은 CQRS, 그리고 의사결정 흐름.
-- [reference/concepts.md](./reference/concepts.md) — 빌려온 DDD 어휘(하위 도메인·바운디드 컨텍스트·도메인 모델·애그리거트).
-- [reference/decoupling.md](./reference/decoupling.md) — 컨텍스트 안 구성과 간 결합을 푸는 방법들, 읽기 모델의 상세·트레이드오프.
+기능 기반 구조에서 출발해, 두 가지 경계(**컨텍스트**와 **레이어**)를 명확히 나누고 컨텍스트 간 의존을 단방향으로 다스립니다.
 
-## 더 읽기 (배경)
+- **패키지 구조** — `common/` · `config/` · `util/` · `module/<bc>/`.
+- **컨텍스트 내부 레이어** — `domain/`(애그리거트 + Repository 인터페이스) · `application/{command,query}`(CQS) · `infrastructure/adapter` · `contract/`(상류일 때만: OHS + PL).
+- **CQS** — 쓰기는 도메인 Repository로 불변식 검증, 읽기는 `ReadQuery`로 화면 DTO(크로스 컨텍스트 DB 직접 JOIN 허용).
+- **컨텍스트 간** — 하류 → 상류 단방향, 하류는 상류의 `contract`만 참조. 하류는 **Conformist**(직접 사용) 또는 **ACL**(자기 포트 + 어댑터 번역)을 선택.
+- **도메인** — 순수성·자가검증을 지키되, 실용성을 위해 **JPA 애노테이션 직접 사용을 허용**.
 
-- [경계를 긋는 언어, 도메인 주도 설계](https://goraebap.xyz/posts/language-of-boundaries/) — DDD에서 무엇을, 왜 빌렸는가.
-- [백엔드 실용주의 디자인](https://goraebap.xyz/posts/backend-pragmatism-design/) — 기능 사이 결합의 원인과, 점진적으로 푸는 선택지들.
-- [tiny-hr](https://github.com/dev-goraebap/tiny-hr) — 예제 프로젝트(사원·휴가·결재·알림).
+구성:
+
+- [SKILL.md](./SKILL.md) — 본체(전제·두 경계·패키지·레이어·CQS·상하류·contract·Conformist/ACL·배치표).
+- [reference/collaboration.md](./reference/collaboration.md) — contract(OHS/PL) 코드, Conformist/ACL 코드·비교, 양방향 처리, PR 체크리스트, 용어집.
 
 ## 적용 범위
 
-모놀리식 + 단일 DB, OOP·DI 프레임워크(NestJS, Spring Boot, ASP.NET Core 등). MSA·다중 DB·분산(결과적 일관성)은 적용 범위 밖.
+단일 배포 모놀리식 + 단일 DB, Spring Boot / Java(OOP·DI). **모듈 별도 배포·MSA·다중 DB·분산(결과적 일관성)은 적용 범위 밖.**
 
 ## 라이선스
 
