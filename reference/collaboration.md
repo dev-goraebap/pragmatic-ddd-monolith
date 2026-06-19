@@ -3,6 +3,10 @@
 > 상류가 `contract`로 공개하고, 하류가 Conformist 또는 ACL로 수용하는 실제 코드와 판단 기준. 그리고 양방향 처리·PR 체크리스트·용어집.
 > SKILL.md의 4~6장 심화. 예시 도메인: 공사(`construction`, 상류) / 위험성평가(`riskassessment`, 하류).
 
+![A(하류)·B(상류) 협업 구조 — OHS/PL, ACL, Conformist](diagram.png)
+
+> A 컨텍스트(하류): Presentation → application/{command,query} → domain(Repository 인터페이스) → infrastructure. 상류 B가 견고하면 OHS에 직접 접근(Conformist), 격리가 필요하면 infrastructure의 ACL이 상류 OHS를 호출. B 컨텍스트(상류): `contract`로 OHS/PL만 공개.
+
 ---
 
 ## 1. 상류: `contract` (OHS + PL)

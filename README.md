@@ -4,6 +4,8 @@
 > 객체지향 + DI 프레임워크(Spring Boot, NestJS, .NET 등)에서 두루 쓸 수 있고, 예시는 Spring Boot/Java로 듭니다.
 > 모듈을 따로 배포하지 않습니다(그건 MSA). 정석 DDD를 교조적으로 따르기보다 생산성과의 타협을 우선합니다.
 
+![아키텍처 구조 개요 — 컨텍스트 내부 레이어와 상류/하류 협업(OHS·PL·ACL·Conformist)](reference/diagram.png)
+
 ## 설치
 
 ```bash
