@@ -1,7 +1,7 @@
 {
   "name": "pragmatic-ddd-monolith",
-  "version": "0.6.0",
-  "description": "Pragmatic DDD design skill for single-deployment monoliths on a single database (Spring Boot / Java): bounded contexts as module/<bc> packages, CQS command/query split, upstream contract (OHS + PL), and downstream Conformist vs ACL.",
+  "version": "0.7.0",
+  "description": "Principle-level pragmatic DDD skill for single-deployment monoliths on a single database (OOP + DI stacks): two distinct boundaries (context vs layer), inward dependencies, CQS write/read split, one-way cross-context dependencies through a published contract (OHS + PL), and downstream Conformist vs ACL. Concrete naming and structure are team decisions recorded as ADRs.",
   "keywords": [
     "agent-skill",
     "agentskills",

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-06-29
+
+### Changed
+- **규정형 → 원칙 전용(principle-only) 실용주의 아키텍처로 전환.** "패키지를 이렇게, 클래스 이름을 이렇게"라는 강제 구조를 걷어내고, 의존 방향·CQS·계약 경계·상하류·Conformist/ACL을 **원칙과 근거** 중심으로 재작성. 본문에서 구체 패키지 경로·클래스 명명을 전부 제거하고 역할·책임·관계로만 서술.
+- `reference/collaboration.md`의 협력 개념(상하류·OHS/PL·Conformist/ACL·양방향 처리·리뷰 체크리스트·용어집)을 **SKILL.md 본문으로 흡수**.
+
+### Added
+- **`reference/adr-template.md`** — 구체 결정을 팀이 ADR로 남기도록 안내하는 템플릿·작성 가이드와, 이 아키텍처에서 ADR로 남길 결정 목록(명명·컨텍스트 경계·Conformist vs ACL·ORM 정책·계약 가시성·읽기 모델 등).
+- SKILL.md에 **"결정은 ADR로"** 절 신설 — 스킬은 원칙까지만, 구체는 팀이 결정해 ADR로 기록.
+
+### Removed
+- **`reference/collaboration.md` 삭제** — 개념은 SKILL 흡수, Java 코드 예시는 통째 제거.
+- SKILL.md/README.md에서 **모든 Java 코드, 구체 패키지·클래스 명명, 프레임워크 노트**(Spring Data/MyBatis/QueryDSL 등) 제거. 기존 "컨벤션 위임" 절은 "결정은 ADR로"로 흡수.
+
 ## [0.6.0] - 2026-06-19
 
 ### Changed

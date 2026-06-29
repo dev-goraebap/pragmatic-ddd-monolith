@@ -1,132 +1,138 @@
 ---
 name: pragmatic-ddd-monolith
-description: "Use when structuring or refactoring a single-deployment monolith with a single database (Spring Boot / Java) by borrowing DDD pragmatically. Bounded contexts are packages under module/<bc>, each laid out in layers — domain/ (aggregates + repository interfaces), application/{command,query} (CQS), infrastructure/adapter, and contract/ (Open Host Service + Published Language, only when the context is upstream). Cross-context dependencies flow one way (downstream → upstream) and only through the upstream's contract; the downstream picks Conformist (use the contract directly) or ACL (declare its own port + an adapter that translates). Domain stays pure and self-validating but may use JPA annotations directly. Triggers on '이 코드 어디 둬', '컨텍스트 나눠', 'contract 어디 둬', 'OHS/PL', 'ACL', 'command query 분리', '상류 하류', 'where does this go', 'how should bounded contexts talk'. Single deployment + single DB only — NOT modules deployed separately, MSA, or multi-DB."
+description: "Use when structuring or refactoring a single-deployment monolith on a single database (OOP + DI stacks such as Spring Boot, NestJS, .NET) by borrowing DDD pragmatically. Principle-level guidance, not a prescribed package layout: keep two boundaries distinct (business context vs internal layer), point dependencies inward toward a pure, self-validating domain, separate the write path from the read path (CQS), and let cross-context dependencies flow one way (downstream → upstream) only through the upstream's deliberately published contract — the downstream chooses Conformist (accept the contract directly) or ACL (its own port + a translating adapter). Concrete package names, class naming, framework choices, and the Conformist-vs-ACL call are team decisions to record as ADRs, not things this skill dictates. Triggers on '이 코드 어디 둬', '컨텍스트 나눠', '계약 어디 둬', 'OHS/PL', 'ACL', 'command query 분리', '상류 하류', 'where does this go', 'how should bounded contexts talk'. Single deployment + single DB only — NOT modules deployed separately, MSA, or multi-DB."
 license: Apache-2.0
 metadata:
-  version: "0.6.0"
+  version: "0.7.0"
   author: dev-goraebap
 ---
 
 # Pragmatic DDD Monolith
 
-**단일 배포 모놀리식 + 단일 DB**(Spring Boot / Java)에서 DDD를 실용적으로 빌려 **바운디드 컨텍스트를 패키지로 나누는** 표준 아키텍처입니다. 모듈을 따로 배포하지 않습니다(그건 MSA). 정석 DDD를 교조적으로 따르기보다 **생산성과의 타협**을 우선합니다.
+**단일 배포 모놀리식 + 단일 DB**(OOP + DI 스택)에서 DDD를 실용적으로 빌려 설계하는 **원칙**입니다. 모듈을 따로 배포하지 않습니다(그건 MSA).
+
+## 철학 — 규정이 아니라 원칙
+
+이 스킬은 **실용주의 아키텍처**다. "패키지를 이렇게 만들고 클래스 이름을 이렇게 붙여라"고 강제하지 않는다. 대신 **왜 의존을 단방향으로 두는가, 왜 읽기와 쓰기를 가르는가, 왜 계약 경계를 두는가** 같은 원칙과 그 근거를 제시한다. 교조적 DDD를 따르기보다 **생산성과의 타협**을 우선한다.
+
+구체 구조·명명·코드·프레임워크 선택은 **팀의 결정**이며, 이 스킬은 그 결정을 **ADR로 남기라**고 안내한다(→ [결정은 ADR로](#결정은-adr로)). 아래 어디에도 강제 패키지 경로나 클래스 이름은 없다.
 
 ## 전제
 
-- **단일 배포 모놀리식 + 단일 DB.** 모듈 별도 배포·MSA·다중 DB는 적용 범위 밖.
-- **Spring Boot / Java** (OOP + DI) 기준. 다른 OOP+DI 스택에도 구조는 응용 가능.
+- **단일 배포 모놀리식 + 단일 DB.** 모듈 별도 배포·MSA·다중 DB·분산(결과적 일관성)은 적용 범위 밖.
+- **OOP + DI** 기준(Spring Boot, NestJS, .NET 등). 특정 프레임워크에 묶이지 않는다.
 
 ## 두 가지 경계 (섞지 말 것)
 
 | 경계 | 무엇을 나누나 |
 | --- | --- |
-| **컨텍스트 경계** | 비즈니스 영역 (위험성평가 / 공사 / 결재 …) |
+| **컨텍스트 경계** | 비즈니스 영역 (서로 다른 업무 도메인) |
 | **레이어 경계** | 한 컨텍스트 *내부*의 기술 책임 (표현 / 응용 / 도메인 / 인프라) |
 
-이 둘을 또렷이 구분하는 게 복잡도 관리의 핵심이다. 컨텍스트는 보통 서브도메인과 1:1로 매핑하되, 너무 크거나 합치는 게 나으면 팀이 조율한다.
+이 둘을 또렷이 구분하는 게 복잡도 관리의 핵심이다. 컨텍스트는 보통 서브도메인과 1:1로 매핑하되, 너무 크거나 합치는 게 나으면 팀이 조율한다. **경계는 양방향으로 변한다** — 묶이기도 쪼개지기도 한다.
 
-## 1. 패키지 구조
+## 의존 방향
 
-```
-com.example.app
-├── common/      # 도메인 무관 공통 인프라 (config·entity·exception·paging 등)
-├── config/      # 애플리케이션 전역 설정
-├── util/        # 무상태 순수 유틸리티
-└── module/      # ★ 비즈니스 컨텍스트들
-    ├── riskassessment/   # 하류(downstream) 예시
-    ├── construction/     # 상류(upstream) 예시
-    └── ...
-```
+- **컨텍스트 내부: 의존은 안쪽(도메인)을 향한다.** 도메인은 자신을 둘러싼 외부 레이어나 타 컨텍스트의 기술 스펙을 직접 참조하지 않는다.
+- **컨텍스트 간: 단방향만 허용한다.** (자세한 규칙은 [상류/하류](#상류--하류))
 
-- `module/<bc>` 하나 = 독립 비즈니스 컨텍스트. 내부는 레이어 구조(아래).
-- `common`/`util`은 자유롭게 가져다 쓰되, **거기서 개별 비즈니스 컨텍스트를 역참조하지 않는다.**
+## 쓰기와 읽기 분리 (CQS 원칙)
 
-## 2. 컨텍스트 내부 레이어
+상태를 바꾸는 **쓰기 경로**와 화면에 보여주는 **읽기 경로**를 분리한다.
 
-```
-module/<bc>/
-├── domain/                     # 비즈니스 규칙·불변식. 애그리거트별 패키지
-│   └── <agg>/  { Root(애그리거트 루트), 자식 객체, Repository(인터페이스) }
-├── application/
-│   ├── command/                # 쓰기 유스케이스. dto/ · mapper/ · provider/(ACL 포트)
-│   └── query/                  # 조회. <X>ReadQuery(조회 전용 IF) · dto/(View·Projection)
-├── infrastructure/adapter/     # Repository 구현, ACL 어댑터, 외부 연동
-└── contract/                   # ★ 상류일 때만. OHS(XxxContract) + PL(공개 타입)
-```
+| | 쓰기(Command) | 읽기(Query) |
+| --- | --- | --- |
+| **모델** | 도메인 애그리거트 | 읽기 전용 모델(View·Projection) |
+| **흐름** | 도메인을 통해 로드 → 불변식 검증 → 저장 | 화면에 맞춰 조회 |
 
-- **의존은 바깥 → 안(domain).** 도메인은 외부 레이어나 타 컨텍스트 기술 스펙을 직접 참조하지 않는다.
-- **도메인 = 영속성 겸용 허용.** 매퍼 분리를 강요하지 않고 **도메인 엔티티에 JPA 애노테이션 직접 사용을 허용**한다.
-- 지키려는 3가지: ① **단위 테스트 용이성**(DB/스프링 없이 객체 단위로) ② **의존성 격리** ③ **자가 검증**(생성자·정적 팩토리·비즈니스 메서드에서 불변식 예외).
+- **유스케이스 처리를 위해 객체를 메모리에 로드**하는 건(예: 식별자로 조회 후 변경) 화면 조회가 아니라 **쓰기 경로**다 → 도메인을 통해 로드한다.
+- **쓰기가 읽기를 직접 호출하지 않는다.** (비즈니스 ↔ 화면 결합도 ↓)
+- **읽기는 쓰기측 도메인 내부에 손대지 않는다.** 화면 조회는 컨텍스트를 가로지른 **DB 직접 조회/조인을 허용**(애플리케이션 조인 대신). 단, 조회에서 도메인 판별 로직(예: 수정 가능 여부)이 꼭 필요하면 예외적으로 도메인 모델을 재활용한다.
 
-구조 개요 — 컨텍스트 내부 레이어와 상류(B)/하류(A) 협업(OHS·PL·ACL·Conformist):
+## 도메인 원칙
 
-![아키텍처 구조 개요](reference/diagram.png)
+도메인이 지켜야 할 세 가지:
 
-## 3. CQS — 쓰기와 읽기 분리
+1. **순수성** — DB·프레임워크 없이 객체 단위로 단위 테스트가 된다.
+2. **의존성 격리** — 외부 기술/타 컨텍스트가 도메인에 새어 들지 않는다.
+3. **자가 검증** — 생성·상태 변경 시 객체가 스스로 불변식을 보장한다(불변식 위반은 예외로).
 
-`application`을 **command(쓰기)** 와 **query(읽기)** 로 패키지째 가른다.
+실용적 허용: **도메인 객체에 ORM 애노테이션을 직접 붙이는 것**(매퍼 분리를 강요하지 않음)은 생산성을 위해 허용할 수 있다. 다만 이는 순수성과의 타협이므로 **팀이 정해 ADR로 남길 결정**이다.
 
-| 구분 | 위치 | 모델 | DB 접근 |
-| --- | --- | --- | --- |
-| **Command** | `application/command` | 도메인 애그리거트 | `domain/.../Repository`로 로드·검증·저장 |
-| **Query** | `application/query` | 읽기 전용(View·Projection) | `<X>ReadQuery` 등 조회 전용 |
+## 상류 / 하류
 
-- **유스케이스 처리를 위해 객체를 메모리에 로드**하는 건(예: `findById`) 화면 조회가 아니라 **쓰기 경로** → 도메인 Repository 사용.
-- **command 서비스가 query 서비스를 직접 호출하지 않는다.** (비즈니스 ↔ 화면 결합도 ↓)
-- **query는 도메인 Repository를 직접 참조하지 않는다.** `ReadQuery`로 조회. **화면 조회는 컨텍스트를 가로질러 DB 직접 JOIN을 허용**(애플리케이션 조인 대신). 단, 조회에서 도메인 판별 로직(예: 수정 가능 여부)이 꼭 필요하면 예외적으로 도메인 엔티티를 조회해 재활용.
-
-## 4. 컨텍스트 간 관계 — 상류(Upstream) / 하류(Downstream)
-
-- **상류**: 기능·데이터를 제공하는 쪽. 계약(인터페이스)의 주도권을 가진다.
-- **하류**: 상류에 의존하는 쪽. 상류 스펙을 수용해 비즈니스를 수행한다.
+- **상류(Upstream)**: 기능·데이터를 제공하는 쪽. 계약의 주도권을 가진다.
+- **하류(Downstream)**: 상류에 의존해 비즈니스를 수행하는 쪽.
 
 규칙:
+
 1. **의존성은 하류 → 상류 단방향.**
-2. **하류는 상류의 `contract` 패키지만 참조한다.** 상류의 `domain`·`application` 내부 직접 참조 금지.
-3. **상류는 하류를 모른다.** 약속된 `contract`만 안정적으로 유지.
-4. 양방향/순환 참조가 보이면 코드로 우회하지 말고 **경계를 재논의**한다 — 방향을 정리(받는 쪽이 contract 제공/이벤트)하거나, 운명 공동체면 **두 컨텍스트를 병합**.
+2. **하류는 상류의 *공개 계약*만 참조한다.** 상류의 내부 구현을 직접 참조하지 않는다.
+3. **상류는 하류를 모른다.** 약속된 공개 계약만 안정적으로 유지한다.
+4. **양방향/순환 참조는 코드로 우회하지 말고 경계 재논의 신호로 받는다.** 흐름의 주도권을 쥔 쪽을 상류로 정해 단방향으로 정리(역방향이 필요하면 받는 쪽이 계약을 제공하거나 이벤트를 발행)하거나, '운명 공동체(Partnership)'면 **두 컨텍스트를 병합**한다.
 
-## 5. 상류의 공개 창구 — `contract` (OHS + PL)
+## 공개 계약 (OHS / PL)
 
-상류는 오직 `module/<bc>/contract`로만 외부에 공개한다. 나머지는 비공개 내부 구현.
+상류는 **의도적으로 공개한 계약으로만** 외부에 노출하고, 나머지는 비공개 내부 구현으로 둔다.
 
-- **OHS (Open Host Service)** = `XxxContract` 인터페이스. 호출자는 이 인터페이스만 본다.
-- **PL (Published Language)** = 계약에 쓰는 공개 타입(record 등). **도메인 엔티티를 직접 노출하지 않는다** — 내부 모델/스키마 변경의 충격을 완충.
-- 구현은 상류 `application`에서: (A) 기존 서비스가 `implements`, 또는 (B) 외부용 브릿지 서비스로 분리. 어느 쪽이든 **하류엔 인터페이스만** 드러난다.
+- **OHS (Open Host Service)** — 상류가 외부에 공개하는 표준 진입점. 호출자는 이 계약만 본다. (HTTP API가 아니라 코드 레벨의 인터페이스를 뜻한다.)
+- **PL (Published Language)** — 계약에서 주고받는 **공개 타입**. **도메인 모델을 그대로 노출하지 않는다** — 내부 모델/스키마 변경의 충격을 완충한다.
 
-(코드 예시: [reference/collaboration.md](./reference/collaboration.md))
+계약 구현을 기존 서비스에 합칠지, 외부 노출용으로 분리할지는 팀이 정한다(→ ADR). 어느 쪽이든 **하류엔 계약만** 드러난다.
 
-## 6. 하류의 선택 — Conformist vs ACL
+## 하류의 선택 — Conformist vs ACL
 
-하류가 결합 수준을 **스스로** 정한다. 정답은 없고 변경 빈도·중요도로 고른다.
+하류가 결합 수준을 **스스로** 정한다. 정답은 없고 **변경 빈도·중요도**로 고른다.
 
 | | **Conformist (순응)** | **ACL (부패 방지 계층)** |
 | --- | --- | --- |
-| 상류 의존 침투 | `application`까지 직접 | `infrastructure/adapter`로 격리 |
-| 데이터 타입 | 상류 PL 그대로 | 하류 고유 언어 타입 |
-| 적합 | 표준적·안정적 상류 (결재·파일 등) | 상류 불안정 / 도메인 독립 보호 / 테스트 격리 |
-| 비용 | 낮음 | 중간 (포트+어댑터) |
+| 상류 의존 침투 | 응용 로직까지 직접 | 인프라 경계로 격리 |
+| 데이터 타입 | 상류 공개 타입 그대로 | 하류 고유 언어 타입 |
+| 적합 | 표준적·안정적 상류 | 상류 불안정 / 도메인 독립 보호 / 테스트 격리 |
+| 비용 | 낮음 | 중간 (포트 + 어댑터 + 매핑) |
 
-- **Conformist**: 하류 `application`이 상류 `contract`·PL을 직접 임포트해 사용.
-- **ACL**: 하류가 `application/command/provider`에 **자기 언어의 포트**를 선언하고, `infrastructure/adapter`가 상류 contract를 호출·번역. 하류 `application`은 상류 존재를 모른다(테스트 시 가짜 포트 주입 용이).
+- **Conformist**: 상류의 공개 계약·타입을 번역 없이 그대로 수용한다. 상류가 보편적·안정적이라 하류 도메인 순수성에 무리가 없을 때.
+- **ACL**: 하류가 **자기 언어의 포트(인터페이스)** 를 선언하고, 어댑터가 상류 계약을 호출·번역한다. 하류 응용 로직은 상류의 존재를 모른다(테스트 시 가짜 포트 주입 용이). 상류 스펙이 가변적이거나, 도메인 독립을 지키거나, 외부 연동으로부터 단위 테스트를 방어하고 싶을 때.
 
-(코드·판단 기준: [reference/collaboration.md](./reference/collaboration.md))
+관계마다 **어느 쪽을 택했는지 ADR로 기록**한다.
 
-## 어디에 둘지 (요약)
+## 결정은 ADR로
 
-| 역할 | 위치 |
+이 스킬은 **원칙까지만** 정한다. 구체는 전부 팀의 결정이며, 결정과 그 근거를 **ADR(Architecture Decision Record)** 로 남긴다. ADR로 남길 만한 대표 결정:
+
+- 패키지·레이어 **명명 규칙**과 컨텍스트별 폴더 구조.
+- **컨텍스트 목록과 경계** — 무엇을 한 컨텍스트로 묶고 어디서 가르는가.
+- 관계별 **Conformist vs ACL** 선택과 이유.
+- 도메인의 **ORM 애노테이션 정책**(직접 사용 허용 여부).
+- 공개 **계약의 구현 방식**(기존 서비스 통합 / 외부용 분리)과 **가시성 강제 방식**(리뷰 / 모듈 시스템 / 아키텍처 테스트 등).
+- **읽기 모델 전략**(프로젝션 방식, 크로스 컨텍스트 조회 허용 범위).
+- 공통/유틸 영역의 경계(특정 도메인 이름이 새어 들지 않게).
+
+ADR 템플릿과 작성 가이드: [reference/adr-template.md](./reference/adr-template.md).
+
+## 리뷰 체크리스트 (명명 무관)
+
+- [ ] **의존성 침투** — 하류가 상류의 내부 구현을 참조하지 않고 오직 공개 계약만 보는가.
+- [ ] **양방향 의존** — 두 컨텍스트가 서로 직접 참조하지 않는가. (보이면 [상류/하류] 4번 재검토)
+- [ ] **정보 은닉** — 상류가 공개할 필요 없는 내부 구현을 노출하지 않는가.
+- [ ] **도메인 은닉** — 공개 타입(PL)이 도메인 모델을 그대로 반환·포함하지 않는가.
+- [ ] **CQS 비혼선** — 쓰기와 읽기가 엉키지 않는가(쓰기가 읽기 호출 금지, 읽기가 쓰기측 도메인 내부 직접 참조 금지).
+- [ ] **도메인 독립성** — 도메인이 외부 구체 기술·타 컨텍스트에 직접 의존하지 않는가(ORM 애노테이션 허용 여부는 팀 ADR을 따름).
+- [ ] **자가 검증·테스트성** — 핵심 도메인이 DB·프레임워크 없이 단위 테스트되고 불변식을 스스로 검증하는가.
+- [ ] **ACL 격리** — ACL을 택했다면 상류 호출 코드가 인프라 경계에만 있고 응용엔 포트만 보이는가.
+- [ ] **공통 영역 순수성** — 도메인 무관 공통/유틸에 특정 컨텍스트 이름이 새어 들지 않았는가.
+
+## 용어집
+
+| 용어 | 약속 |
 | --- | --- |
-| 도메인 개념·불변식·JPA 엔티티·Repository 인터페이스 | `module/<bc>/domain/<agg>/` |
-| 쓰기 유스케이스 | `module/<bc>/application/command/` |
-| 조회 서비스·쿼리 | `module/<bc>/application/query/` |
-| 외부 연동 어댑터·Repository 구현 | `module/<bc>/infrastructure/adapter/` |
-| 타 컨텍스트에 공개하는 API·공용 타입 | `module/<bc>/contract/` (상류만) |
-| 도메인 무관 공통/유틸 | `common/` · `util/` |
-
-## 컨벤션 위임
-
-`contract` 패키지명, PL 접미사 규칙, 레이어 명명, 한 컨텍스트를 여러 명이 나눠 맡는 방식 등 **세부는 팀 컨벤션**이다(미정 가능). 이 스킬의 예시 이름·구조는 권장일 뿐 강제가 아니다.
-
-## 참고
-
-- [reference/collaboration.md](./reference/collaboration.md) — contract(OHS/PL) 코드, Conformist/ACL 코드·비교, 양방향 처리, PR 체크리스트, 용어집.
+| **바운디드 컨텍스트 (BC)** | 비즈니스 도메인의 경계. 자기만의 언어와 책임을 가진 단위. |
+| **레이어 (Layer)** | 한 컨텍스트 내부의 기술 관심사(표현·응용·도메인·인프라) 수평 분리. |
+| **CQS** | 상태 변경(Command)과 조회(Query)를 별개 채널로 분리. |
+| **상류 (Upstream)** | 데이터·서비스를 공급하는 쪽. 계약 주도권 보유. |
+| **하류 (Downstream)** | 상류 스펙을 수용해 비즈니스를 수행하는 의존 쪽. |
+| **OHS (Open Host Service)** | 상류가 외부에 공개하는 표준 진입점(코드 레벨 인터페이스). |
+| **PL (Published Language)** | 계약에서 합의한 공개 데이터 교환 포맷(도메인 모델 직접 노출 금지). |
+| **Conformist** | 상류 모델·계약을 하류가 번역 없이 그대로 수용. |
+| **ACL (Anti-Corruption Layer)** | 외부 스펙 변경·결합으로부터 하류 도메인을 지키는 번역 격리 계층. |
+| **포트/어댑터** | 안쪽에 명세(포트), 바깥에 기술 구현(어댑터)을 주입해 의존 역전·테스트 격리. |
